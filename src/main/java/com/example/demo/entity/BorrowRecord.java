@@ -29,6 +29,9 @@ public class BorrowRecord {
     private LocalDateTime borrowDate;
 
     @Column
+    private LocalDateTime dueDate;
+
+    @Column
     private LocalDateTime returnDate;
 
 }

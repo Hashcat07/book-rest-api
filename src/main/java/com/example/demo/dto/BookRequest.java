@@ -23,4 +23,6 @@ public class BookRequest {
     private double price;
 
     private boolean available;
+
+    private Long categoryId;
 }

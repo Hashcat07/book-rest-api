@@ -18,6 +18,7 @@ public interface BookMapper {
     @Mapping(target = "lastModifiedBy", ignore = true)
     Book toEntity(BookRequest req);
 
+    @Mapping(source = "category.name", target = "categoryName")
     BookResponse toResponse(Book book);
 
     List<BookResponse> toResponseList(List<Book> books);

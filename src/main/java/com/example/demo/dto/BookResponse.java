@@ -19,4 +19,5 @@ public class BookResponse {
     private boolean available;
     private LocalDateTime createdDate;
     private String createdBy;
+    private String categoryName;
 }

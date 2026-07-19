@@ -38,6 +38,10 @@ public class Book {
     @Column(nullable = false)
     private boolean available;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
+
     @CreatedDate
     @Column(updatable = false)
     private LocalDateTime createdDate;

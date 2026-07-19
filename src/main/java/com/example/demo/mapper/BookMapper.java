@@ -12,6 +12,8 @@ import java.util.List;
 public interface BookMapper {
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "category", ignore = true)
+    @Mapping(target = "reviews", ignore = true)
     @Mapping(target = "createdDate", ignore = true)
     @Mapping(target = "lastModifiedDate", ignore = true)
     @Mapping(target = "createdBy", ignore = true)

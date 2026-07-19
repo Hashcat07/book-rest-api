@@ -3,10 +3,14 @@ package com.example.demo.service;
 import com.example.demo.dto.BookRequest;
 import com.example.demo.dto.BookResponse;
 import com.example.demo.entity.Book;
+import com.example.demo.entity.Category;
 import com.example.demo.exception.BookNotFound;
+import com.example.demo.exception.CategoryNotFoundException;
 import com.example.demo.exception.DuplicateBookException;
 import com.example.demo.mapper.BookMapper;
+import com.example.demo.projection.BookSummary;
 import com.example.demo.repository.BookRepository;
+import com.example.demo.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,19 +38,43 @@ public class BookServiceTest {
     @Mock
     private BookMapper bookMapper;
 
+    @Mock
+    private CategoryRepository categoryRepository;
+
     private BookService bookService;
 
     @BeforeEach
     void setUp() {
-        bookService = new BookService(bookRepository, bookMapper);
+        bookService = new BookService(bookRepository, bookMapper, categoryRepository);
+    }
+
+    // --- helpers: build via setters so tests survive future field additions ---
+    private Book book(Long id, String title, String author, double price, boolean available) {
+        Book b = new Book();
+        b.setId(id);
+        b.setTitle(title);
+        b.setAuthor(author);
+        b.setPrice(price);
+        b.setAvailable(available);
+        return b;
+    }
+
+    private BookResponse response(Long id, String title, String author, double price, boolean available) {
+        BookResponse r = new BookResponse();
+        r.setId(id);
+        r.setTitle(title);
+        r.setAuthor(author);
+        r.setPrice(price);
+        r.setAvailable(available);
+        return r;
     }
 
     @Test
     void testSave() {
-        BookRequest request = new BookRequest("Java", "Author", 500, true);
-        Book entity = new Book(null, "Java", "Author", 500, true, null, null, null, null);
-        Book saved = new Book(1L, "Java", "Author", 500, true, null, null, null, null);
-        BookResponse response = new BookResponse(1L, "Java", "Author", 500, true, null, null);
+        BookRequest request = new BookRequest("Java", "Author", 500, true, null);
+        Book entity = book(null, "Java", "Author", 500, true);
+        Book saved = book(1L, "Java", "Author", 500, true);
+        BookResponse response = response(1L, "Java", "Author", 500, true);
 
         when(bookRepository.existsByTitle("Java")).thenReturn(false);
         when(bookMapper.toEntity(request)).thenReturn(entity);
@@ -57,12 +85,47 @@ public class BookServiceTest {
 
         assertEquals("Java", result.getTitle());
         assertEquals(1L, result.getId());
+        verify(categoryRepository, never()).findById(any());
         verify(bookRepository).save(entity);
     }
 
     @Test
+    void testSaveWithCategory() {
+        BookRequest request = new BookRequest("Java", "Author", 500, true, 7L);
+        Book entity = book(null, "Java", "Author", 500, true);
+        Category category = new Category(7L, "Programming");
+        Book saved = book(1L, "Java", "Author", 500, true);
+        BookResponse response = response(1L, "Java", "Author", 500, true);
+
+        when(bookRepository.existsByTitle("Java")).thenReturn(false);
+        when(bookMapper.toEntity(request)).thenReturn(entity);
+        when(categoryRepository.findById(7L)).thenReturn(Optional.of(category));
+        when(bookRepository.save(entity)).thenReturn(saved);
+        when(bookMapper.toResponse(saved)).thenReturn(response);
+
+        bookService.save(request);
+
+        assertEquals(category, entity.getCategory()); // category was attached before save
+        verify(categoryRepository).findById(7L);
+        verify(bookRepository).save(entity);
+    }
+
+    @Test
+    void testSaveWithInvalidCategory() {
+        BookRequest request = new BookRequest("Java", "Author", 500, true, 99L);
+        Book entity = book(null, "Java", "Author", 500, true);
+
+        when(bookRepository.existsByTitle("Java")).thenReturn(false);
+        when(bookMapper.toEntity(request)).thenReturn(entity);
+        when(categoryRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThrows(CategoryNotFoundException.class, () -> bookService.save(request));
+        verify(bookRepository, never()).save(any());
+    }
+
+    @Test
     void testSaveDuplicate() {
-        BookRequest request = new BookRequest("Java", "Author", 500, true);
+        BookRequest request = new BookRequest("Java", "Author", 500, true, null);
 
         when(bookRepository.existsByTitle("Java")).thenReturn(true);
 
@@ -73,16 +136,13 @@ public class BookServiceTest {
     @Test
     void testFindAll() {
         Pageable pageable = PageRequest.of(0, 5);
-        Book book1 = new Book(1L, "Java", "James", 500.0, true, null, null, null, null);
-        Book book2 = new Book(2L, "Spring", "Rod", 700.0, false, null, null, null, null);
+        Book book1 = book(1L, "Java", "James", 500.0, true);
+        Book book2 = book(2L, "Spring", "Rod", 700.0, false);
         Page<Book> bookPage = new PageImpl<>(List.of(book1, book2), pageable, 2);
 
-        BookResponse resp1 = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
-        BookResponse resp2 = new BookResponse(2L, "Spring", "Rod", 700.0, false, null, null);
-
         when(bookRepository.findAll(pageable)).thenReturn(bookPage);
-        when(bookMapper.toResponse(book1)).thenReturn(resp1);
-        when(bookMapper.toResponse(book2)).thenReturn(resp2);
+        when(bookMapper.toResponse(book1)).thenReturn(response(1L, "Java", "James", 500.0, true));
+        when(bookMapper.toResponse(book2)).thenReturn(response(2L, "Spring", "Rod", 700.0, false));
 
         Page<BookResponse> result = bookService.findAll(pageable);
 
@@ -93,11 +153,10 @@ public class BookServiceTest {
 
     @Test
     void testFindById() {
-        Book book = new Book(1L, "Java", "James", 500.0, true, null, null, null, null);
-        BookResponse response = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        Book b = book(1L, "Java", "James", 500.0, true);
 
-        when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
-        when(bookMapper.toResponse(book)).thenReturn(response);
+        when(bookRepository.findById(1L)).thenReturn(Optional.of(b));
+        when(bookMapper.toResponse(b)).thenReturn(response(1L, "Java", "James", 500.0, true));
 
         BookResponse result = bookService.findById(1L);
 
@@ -116,14 +175,13 @@ public class BookServiceTest {
 
     @Test
     void testUpdate() {
-        BookRequest request = new BookRequest("Updated Java", "Updated Author", 900.0, false);
-        Book existing = new Book(1L, "Java", "James", 500.0, true, null, null, null, null);
-        Book updated = new Book(1L, "Updated Java", "Updated Author", 900.0, false, null, null, null, null);
-        BookResponse response = new BookResponse(1L, "Updated Java", "Updated Author", 900.0, false, null, null);
+        BookRequest request = new BookRequest("Updated Java", "Updated Author", 900.0, false, null);
+        Book existing = book(1L, "Java", "James", 500.0, true);
+        Book updated = book(1L, "Updated Java", "Updated Author", 900.0, false);
 
         when(bookRepository.findById(1L)).thenReturn(Optional.of(existing));
         when(bookRepository.save(any(Book.class))).thenReturn(updated);
-        when(bookMapper.toResponse(updated)).thenReturn(response);
+        when(bookMapper.toResponse(updated)).thenReturn(response(1L, "Updated Java", "Updated Author", 900.0, false));
 
         BookResponse result = bookService.update(1L, request);
 
@@ -134,7 +192,7 @@ public class BookServiceTest {
 
     @Test
     void testUpdateNotFound() {
-        BookRequest request = new BookRequest("Java", "James", 500.0, true);
+        BookRequest request = new BookRequest("Java", "James", 500.0, true, null);
 
         when(bookRepository.findById(99L)).thenReturn(Optional.empty());
 
@@ -160,22 +218,32 @@ public class BookServiceTest {
     }
 
     @Test
+    void testGetSummaries() {
+        BookSummary summary = mock(BookSummary.class);
+        when(summary.getTitle()).thenReturn("Java");
+        when(summary.getAverageRating()).thenReturn(4.5);
+        when(bookRepository.findAllSummaries()).thenReturn(List.of(summary));
+
+        List<BookSummary> result = bookService.getSummaries();
+
+        assertEquals(1, result.size());
+        assertEquals("Java", result.get(0).getTitle());
+        assertEquals(4.5, result.get(0).getAverageRating());
+        verify(bookRepository).findAllSummaries();
+    }
+
+    @Test
     void testFindByAuthor() {
         Pageable pageable = PageRequest.of(0, 5);
-        Book book1 = new Book(1L, "Java Basics", "James", 300.0, true, null, null, null, null);
-        Book book2 = new Book(3L, "Advanced Java", "James", 700.0, false, null, null, null, null);
-        Page<Book> bookPage = new PageImpl<>(List.of(book1, book2), pageable, 2);
-
-        BookResponse resp1 = new BookResponse(1L, "Java Basics", "James", 300.0, true, null, null);
-        BookResponse resp2 = new BookResponse(3L, "Advanced Java", "James", 700.0, false, null, null);
+        Book b = book(1L, "Java Basics", "James", 300.0, true);
+        Page<Book> bookPage = new PageImpl<>(List.of(b), pageable, 1);
 
         when(bookRepository.findByAuthor("James", pageable)).thenReturn(bookPage);
-        when(bookMapper.toResponse(book1)).thenReturn(resp1);
-        when(bookMapper.toResponse(book2)).thenReturn(resp2);
+        when(bookMapper.toResponse(b)).thenReturn(response(1L, "Java Basics", "James", 300.0, true));
 
         Page<BookResponse> result = bookService.findByAuthor("James", pageable);
 
-        assertEquals(2, result.getContent().size());
+        assertEquals(1, result.getContent().size());
         assertEquals("James", result.getContent().get(0).getAuthor());
         verify(bookRepository).findByAuthor("James", pageable);
     }
@@ -183,16 +251,11 @@ public class BookServiceTest {
     @Test
     void testFindByPriceLessThan() {
         Pageable pageable = PageRequest.of(0, 5);
-        Book book1 = new Book(1L, "Java", "James", 300.0, true, null, null, null, null);
-        Book book2 = new Book(2L, "Spring", "Rod", 500.0, true, null, null, null, null);
-        Page<Book> bookPage = new PageImpl<>(List.of(book1, book2), pageable, 2);
-
-        BookResponse resp1 = new BookResponse(1L, "Java", "James", 300.0, true, null, null);
-        BookResponse resp2 = new BookResponse(2L, "Spring", "Rod", 500.0, true, null, null);
+        Book b = book(1L, "Java", "James", 300.0, true);
+        Page<Book> bookPage = new PageImpl<>(List.of(b), pageable, 1);
 
         when(bookRepository.findByPriceLessThan(800.0, pageable)).thenReturn(bookPage);
-        when(bookMapper.toResponse(book1)).thenReturn(resp1);
-        when(bookMapper.toResponse(book2)).thenReturn(resp2);
+        when(bookMapper.toResponse(b)).thenReturn(response(1L, "Java", "James", 300.0, true));
 
         Page<BookResponse> result = bookService.findByPriceLessThan(800.0, pageable);
 
@@ -204,20 +267,15 @@ public class BookServiceTest {
     @Test
     void testFindByAvailableTrue() {
         Pageable pageable = PageRequest.of(0, 5);
-        Book book1 = new Book(1L, "Java", "James", 300.0, true, null, null, null, null);
-        Book book2 = new Book(4L, "Hibernate", "Gavin", 900.0, true, null, null, null, null);
-        Page<Book> bookPage = new PageImpl<>(List.of(book1, book2), pageable, 2);
-
-        BookResponse resp1 = new BookResponse(1L, "Java", "James", 300.0, true, null, null);
-        BookResponse resp2 = new BookResponse(4L, "Hibernate", "Gavin", 900.0, true, null, null);
+        Book b = book(1L, "Java", "James", 300.0, true);
+        Page<Book> bookPage = new PageImpl<>(List.of(b), pageable, 1);
 
         when(bookRepository.findByAvailableTrue(pageable)).thenReturn(bookPage);
-        when(bookMapper.toResponse(book1)).thenReturn(resp1);
-        when(bookMapper.toResponse(book2)).thenReturn(resp2);
+        when(bookMapper.toResponse(b)).thenReturn(response(1L, "Java", "James", 300.0, true));
 
         Page<BookResponse> result = bookService.findByAvailableTrue(pageable);
 
-        assertEquals(2, result.getContent().size());
+        assertEquals(1, result.getContent().size());
         assertTrue(result.getContent().stream().allMatch(BookResponse::isAvailable));
         verify(bookRepository).findByAvailableTrue(pageable);
     }
@@ -225,13 +283,11 @@ public class BookServiceTest {
     @Test
     void testFindByTitleContaining() {
         Pageable pageable = PageRequest.of(0, 5);
-        Book book = new Book(4L, "Hibernate", "Gavin", 900.0, true, null, null, null, null);
-        Page<Book> bookPage = new PageImpl<>(List.of(book), pageable, 1);
-
-        BookResponse response = new BookResponse(4L, "Hibernate", "Gavin", 900.0, true, null, null);
+        Book b = book(4L, "Hibernate", "Gavin", 900.0, true);
+        Page<Book> bookPage = new PageImpl<>(List.of(b), pageable, 1);
 
         when(bookRepository.findByTitleContaining("Hibernate", pageable)).thenReturn(bookPage);
-        when(bookMapper.toResponse(book)).thenReturn(response);
+        when(bookMapper.toResponse(b)).thenReturn(response(4L, "Hibernate", "Gavin", 900.0, true));
 
         Page<BookResponse> result = bookService.findByTitleContaining("Hibernate", pageable);
 
@@ -243,20 +299,15 @@ public class BookServiceTest {
     @Test
     void testFindByPriceBetween() {
         Pageable pageable = PageRequest.of(0, 5);
-        Book book1 = new Book(1L, "Java", "James", 300.0, true, null, null, null, null);
-        Book book2 = new Book(2L, "Spring", "Rod", 500.0, true, null, null, null, null);
-        Page<Book> bookPage = new PageImpl<>(List.of(book1, book2), pageable, 2);
-
-        BookResponse resp1 = new BookResponse(1L, "Java", "James", 300.0, true, null, null);
-        BookResponse resp2 = new BookResponse(2L, "Spring", "Rod", 500.0, true, null, null);
+        Book b = book(1L, "Java", "James", 300.0, true);
+        Page<Book> bookPage = new PageImpl<>(List.of(b), pageable, 1);
 
         when(bookRepository.findByPriceBetween(200.0, 600.0, pageable)).thenReturn(bookPage);
-        when(bookMapper.toResponse(book1)).thenReturn(resp1);
-        when(bookMapper.toResponse(book2)).thenReturn(resp2);
+        when(bookMapper.toResponse(b)).thenReturn(response(1L, "Java", "James", 300.0, true));
 
         Page<BookResponse> result = bookService.findByPriceBetween(200.0, 600.0, pageable);
 
-        assertEquals(2, result.getContent().size());
+        assertEquals(1, result.getContent().size());
         verify(bookRepository).findByPriceBetween(200.0, 600.0, pageable);
     }
 

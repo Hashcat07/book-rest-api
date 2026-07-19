@@ -43,6 +43,12 @@ public class BookController {
         return ResponseEntity.ok().body(bookService.findAll(pageable).map(hateoasCreator::addLinks));
     }
 
+    @GetMapping("/summaries")
+    @Operation(summary = "Get Book Summaries", description = "Returns title, author and average rating for each book")
+    public ResponseEntity<java.util.List<com.example.demo.projection.BookSummary>> getSummaries() {
+        return ResponseEntity.ok(bookService.getSummaries());
+    }
+
     @GetMapping(value = "/{id}", produces = {
             MediaType.APPLICATION_JSON_VALUE,
             MediaType.APPLICATION_XML_VALUE

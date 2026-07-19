@@ -49,8 +49,8 @@ public class BookControllerTest {
 
     @Test
     void testSave() throws Exception {
-        BookRequest request = new BookRequest("Java", "James", 500.0, true);
-        BookResponse response = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookRequest request = new BookRequest("Java", "James", 500.0, true, null);
+        BookResponse response = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
         EntityModel<BookResponse> entityModel = EntityModel.of(response);
 
         when(bookService.save(any(BookRequest.class))).thenReturn(response);
@@ -69,7 +69,7 @@ public class BookControllerTest {
 
     @Test
     void testPostValidationFailure() throws Exception {
-        BookRequest request = new BookRequest("", "Author", -10, true);
+        BookRequest request = new BookRequest("", "Author", -10, true, null);
 
         mockMvc.perform(
                         post("/books")
@@ -81,7 +81,7 @@ public class BookControllerTest {
 
     @Test
     void testPostDuplicateTitle() throws Exception {
-        BookRequest request = new BookRequest("Java", "James", 500.0, true);
+        BookRequest request = new BookRequest("Java", "James", 500.0, true, null);
 
         when(bookService.save(any(BookRequest.class)))
                 .thenThrow(new DuplicateBookException("Title Already Exists"));
@@ -97,8 +97,8 @@ public class BookControllerTest {
     @Test
     void testGetAllBooks() throws Exception {
         Pageable pageable = PageRequest.of(0, 5);
-        BookResponse book1 = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
-        BookResponse book2 = new BookResponse(2L, "Spring", "Rod", 700.0, false, null, null);
+        BookResponse book1 = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
+        BookResponse book2 = new BookResponse(2L, "Spring", "Rod", 700.0, false, null, null, null);
 
         Page<BookResponse> bookPage = new PageImpl<>(List.of(book1, book2), pageable, 2);
 
@@ -115,7 +115,7 @@ public class BookControllerTest {
 
     @Test
     void testGetById() throws Exception {
-        BookResponse response = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookResponse response = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
         EntityModel<BookResponse> entityModel = EntityModel.of(response);
 
         when(bookService.findById(1L)).thenReturn(response);
@@ -138,8 +138,8 @@ public class BookControllerTest {
 
     @Test
     void testUpdateBook() throws Exception {
-        BookRequest request = new BookRequest("Java Updated", "James Updated", 700.0, false);
-        BookResponse response = new BookResponse(1L, "Java Updated", "James Updated", 700.0, false, null, null);
+        BookRequest request = new BookRequest("Java Updated", "James Updated", 700.0, false, null);
+        BookResponse response = new BookResponse(1L, "Java Updated", "James Updated", 700.0, false, null, null, null);
         EntityModel<BookResponse> entityModel = EntityModel.of(response);
 
         when(bookService.update(anyLong(), any(BookRequest.class))).thenReturn(response);
@@ -162,7 +162,7 @@ public class BookControllerTest {
     @Test
     void testGetByAuthor() throws Exception {
         Pageable pageable = PageRequest.of(0, 5);
-        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
 
         Page<BookResponse> bookPage = new PageImpl<>(List.of(book), pageable, 1);
 
@@ -178,7 +178,7 @@ public class BookControllerTest {
     @Test
     void testGetByPriceLessThan() throws Exception {
         Pageable pageable = PageRequest.of(0, 5);
-        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
 
         Page<BookResponse> bookPage = new PageImpl<>(List.of(book), pageable, 1);
 
@@ -193,7 +193,7 @@ public class BookControllerTest {
     @Test
     void testGetAvailableBooks() throws Exception {
         Pageable pageable = PageRequest.of(0, 5);
-        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
 
         Page<BookResponse> bookPage = new PageImpl<>(List.of(book), pageable, 1);
 
@@ -208,7 +208,7 @@ public class BookControllerTest {
     @Test
     void testGetByTitle() throws Exception {
         Pageable pageable = PageRequest.of(0, 5);
-        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
 
         Page<BookResponse> bookPage = new PageImpl<>(List.of(book), pageable, 1);
 
@@ -223,7 +223,7 @@ public class BookControllerTest {
     @Test
     void testGetByPriceBetween() throws Exception {
         Pageable pageable = PageRequest.of(0, 5);
-        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null);
+        BookResponse book = new BookResponse(1L, "Java", "James", 500.0, true, null, null, null);
 
         Page<BookResponse> bookPage = new PageImpl<>(List.of(book), pageable, 1);
 

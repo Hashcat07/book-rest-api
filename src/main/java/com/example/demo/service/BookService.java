@@ -3,10 +3,14 @@ package com.example.demo.service;
 import com.example.demo.dto.BookRequest;
 import com.example.demo.dto.BookResponse;
 import com.example.demo.entity.Book;
+import com.example.demo.entity.Category;
 import com.example.demo.exception.BookNotFound;
+import com.example.demo.exception.CategoryNotFoundException;
 import com.example.demo.exception.DuplicateBookException;
 import com.example.demo.mapper.BookMapper;
+import com.example.demo.projection.BookSummary;
 import com.example.demo.repository.BookRepository;
+import com.example.demo.repository.CategoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,10 +24,13 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final BookMapper bookMapper;
+    private final CategoryRepository categoryRepository;
 
-    public BookService(BookRepository bookRepository, BookMapper bookMapper) {
+    public BookService(BookRepository bookRepository, BookMapper bookMapper,
+                       CategoryRepository categoryRepository) {
         this.bookRepository = bookRepository;
         this.bookMapper = bookMapper;
+        this.categoryRepository = categoryRepository;
     }
 
     public BookResponse save(BookRequest request) {
@@ -32,6 +39,7 @@ public class BookService {
         }
 
         Book book = bookMapper.toEntity(request);
+        applyCategory(book, request.getCategoryId());
         return bookMapper.toResponse(bookRepository.save(book));
     }
 
@@ -54,8 +62,21 @@ public class BookService {
         existing.setAuthor(request.getAuthor());
         existing.setPrice(request.getPrice());
         existing.setAvailable(request.isAvailable());
+        applyCategory(existing, request.getCategoryId());
 
         return bookMapper.toResponse(bookRepository.save(existing));
+    }
+
+    private void applyCategory(Book book, Long categoryId) {
+        if (categoryId != null) {
+            Category category = categoryRepository.findById(categoryId)
+                    .orElseThrow(() -> new CategoryNotFoundException("No Category Found with id " + categoryId));
+            book.setCategory(category);
+        }
+    }
+
+    public List<BookSummary> getSummaries() {
+        return bookRepository.findAllSummaries();
     }
 
     public void deleteById(Long id) {

@@ -29,8 +29,8 @@ public class BorrowService {
     private final BorrowMapper borrowMapper;
     private final BookMapper bookMapper;
     @Transactional
-    public String borrowBook(Long userId,Long bookId){
-            User user = userRepository.findById(userId).orElseThrow(()-> new UserNotFoundException("User Not Found"));
+    public String borrowBook(String email,Long bookId){
+            User user = userRepository.findByEmail(email).orElseThrow(()-> new UserNotFoundException("User Not Found"));
             Book book = bookRepository.findById(bookId).orElseThrow(()-> new BookNotFound("Book Not Found"));
 
             if(!book.isAvailable()){
@@ -59,8 +59,9 @@ public class BorrowService {
         return bookMapper.toResponse(book);
     }
 
-    public List<BorrowResponse> getUserHistory(Long userId){
-        User user= userRepository.findById(userId).orElseThrow(()-> new UserNotFoundException("User Not Found"));
+    @Transactional(readOnly = true)
+    public List<BorrowResponse> getMyHistory(String email){
+        User user= userRepository.findByEmail(email).orElseThrow(()-> new UserNotFoundException("User Not Found"));
         List<BorrowRecord> list= borrowRecordRepository.findByUserId(user.getId());
         return borrowMapper.toResponseList(list);
 

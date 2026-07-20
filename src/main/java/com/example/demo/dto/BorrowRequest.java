@@ -11,8 +11,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BorrowRequest {
-    @NotNull
-    private Long userId;
 
     @NotNull
     private Long bookId;

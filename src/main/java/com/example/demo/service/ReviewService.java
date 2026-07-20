@@ -11,6 +11,8 @@ import com.example.demo.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ReviewService {
@@ -24,5 +26,15 @@ public class ReviewService {
         Review review=reviewMapper.toEntity(reviewRequest);
         review.setBook(book);
         return reviewMapper.toResponse(reviewRepository.save(review));
+    }
+
+    public List<ReviewResponse> getReviews(Long bookId) {
+        if (!bookRepository.existsById(bookId)) {
+            throw new BookNotFound("No Book Found");
+        }
+        return reviewRepository.findReviewsByBookId(bookId)
+                .stream()
+                .map(reviewMapper::toResponse)
+                .toList();
     }
 }

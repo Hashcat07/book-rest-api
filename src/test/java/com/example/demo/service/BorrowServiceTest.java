@@ -44,11 +44,13 @@ class BorrowServiceTest {
     @InjectMocks
     private BorrowService borrowService;
 
+    private static final String EMAIL = "rohul@example.com";
+
     private User user(Long id) {
         User u = new User();
         u.setId(id);
         u.setName("Rohul");
-        u.setEmail("rohul@example.com");
+        u.setEmail(EMAIL);
         return u;
     }
 
@@ -63,10 +65,10 @@ class BorrowServiceTest {
     void testBorrowSuccess() {
         Book book = book(1L, true);
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user(1L)));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user(1L)));
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
 
-        String result = borrowService.borrowBook(1L, 1L);
+        String result = borrowService.borrowBook(EMAIL, 1L);
 
         assertEquals("Book Borrowed", result);
         assertFalse(book.isAvailable()); // book flipped to unavailable
@@ -78,18 +80,18 @@ class BorrowServiceTest {
     void testBorrowAlreadyBorrowed() {
         Book book = book(1L, false); // already out
 
-        when(userRepository.findById(1L)).thenReturn(Optional.of(user(1L)));
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user(1L)));
         when(bookRepository.findById(1L)).thenReturn(Optional.of(book));
 
-        assertThrows(BookNotAvailableException.class, () -> borrowService.borrowBook(1L, 1L));
+        assertThrows(BookNotAvailableException.class, () -> borrowService.borrowBook(EMAIL, 1L));
         verify(borrowRecordRepository, never()).save(any());
     }
 
     @Test
     void testBorrowUserNotFound() {
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class, () -> borrowService.borrowBook(1L, 1L));
+        assertThrows(UserNotFoundException.class, () -> borrowService.borrowBook(EMAIL, 1L));
         verify(bookRepository, never()).save(any());
     }
 

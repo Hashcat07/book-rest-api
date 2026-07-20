@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,8 +20,9 @@ public class BorrowController {
     private final BorrowService borrowService;
 
     @PostMapping("/borrow")
-    public ResponseEntity<String> borrow(@RequestBody @Valid BorrowRequest borrowRequest) {
-        return ResponseEntity.ok(borrowService.borrowBook(borrowRequest.getUserId(),borrowRequest.getBookId()));
+    public ResponseEntity<String> borrow(@RequestBody @Valid BorrowRequest borrowRequest,
+                                         Authentication authentication) {
+        return ResponseEntity.ok(borrowService.borrowBook(authentication.getName(), borrowRequest.getBookId()));
     }
 
     @PostMapping(value = "/return/{bookId}",produces = {
@@ -31,8 +33,8 @@ public class BorrowController {
         return ResponseEntity.ok(borrowService.returnBook(bookId));
     }
 
-    @GetMapping("/borrow/user/{userId}")
-    public ResponseEntity<List<BorrowResponse>> borrowUser(@PathVariable Long userId) {
-        return ResponseEntity.ok(borrowService.getUserHistory(userId));
+    @GetMapping("/borrow/me")
+    public ResponseEntity<List<BorrowResponse>> myHistory(Authentication authentication) {
+        return ResponseEntity.ok(borrowService.getMyHistory(authentication.getName()));
     }
 }

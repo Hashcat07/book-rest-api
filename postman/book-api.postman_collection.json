@@ -1,0 +1,545 @@
+{
+  "info": {
+    "name": "Book REST API",
+    "description": "End-to-end tests for the Book API: auth (JWT), books, categories, reviews, borrow, and security (401/403). Tokens and ids are saved to collection variables automatically.\n\nSETUP:\n1. Start the app (http://localhost:8080) with MySQL running.\n2. Run the requests top to bottom (Collection Runner works).\n3. For ADMIN requests: run 'Register Admin', then in MySQL run\n   UPDATE users SET role='ADMIN' WHERE email='admin@test.com';\n   then run 'Login Admin' to get an admin token.\n4. Set the 'userId' variable to the id of your registered user\n   (SELECT id FROM users WHERE email='user@test.com';) before the Borrow folder.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "userToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "bookId", "value": "" },
+    { "key": "userId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('userToken', json.token);",
+                  "pm.test('role is USER', () => pm.expect(json.role).to.eql('USER'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rohul\",\n  \"email\": \"user@test.com\",\n  \"password\": \"Password@1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('userToken', pm.response.json().token);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@test.com\",\n  \"password\": \"Password@1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Register Admin (then promote in DB)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "// Now run in MySQL:  UPDATE users SET role='ADMIN' WHERE email='admin@test.com';",
+                  "// then run 'Login Admin'."
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin\",\n  \"email\": \"admin@test.com\",\n  \"password\": \"Password@1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', json.token);",
+                  "pm.test('role is ADMIN (promote in DB first if this fails)', () => pm.expect(json.role).to.eql('ADMIN'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"Password@1\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login - Wrong Password (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@test.com\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Categories (ADMIN)",
+      "item": [
+        {
+          "name": "Create Category",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('categoryId', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Programming\"\n}" },
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] }
+          }
+        },
+        {
+          "name": "Create Category - User Token (expect 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Should Fail\"\n}" },
+            "url": { "raw": "{{baseUrl}}/categories", "host": ["{{baseUrl}}"], "path": ["categories"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Books",
+      "item": [
+        {
+          "name": "Create Book (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('bookId', json.id);",
+                  "pm.test('category name is set', () => pm.expect(json.categoryName).to.eql('Programming'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Effective Java\",\n  \"author\": \"Joshua Bloch\",\n  \"price\": 450.0,\n  \"available\": true,\n  \"categoryId\": {{categoryId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] }
+          }
+        },
+        {
+          "name": "Create Book - No Token (expect 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"No Auth\",\n  \"author\": \"X\",\n  \"price\": 100,\n  \"available\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] }
+          }
+        },
+        {
+          "name": "Create Book - User Token (expect 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('403 Forbidden', () => pm.response.to.have.status(403));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"User Cannot Create\",\n  \"author\": \"X\",\n  \"price\": 100,\n  \"available\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/books", "host": ["{{baseUrl}}"], "path": ["books"] }
+          }
+        },
+        {
+          "name": "Get All Books (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK (no token needed)', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books?page=0&size=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["books"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Book By Id (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('has title', () => pm.expect(pm.response.json().title).to.eql('Effective Java'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] }
+          }
+        },
+        {
+          "name": "Get Book Summaries (projection)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/books/summaries", "host": ["{{baseUrl}}"], "path": ["books", "summaries"] }
+          }
+        },
+        {
+          "name": "Search By Author (public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/books/author?author=Joshua Bloch",
+              "host": ["{{baseUrl}}"],
+              "path": ["books", "author"],
+              "query": [{ "key": "author", "value": "Joshua Bloch" }]
+            }
+          }
+        },
+        {
+          "name": "Update Book (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Effective Java 3rd Ed\",\n  \"author\": \"Joshua Bloch\",\n  \"price\": 500.0,\n  \"available\": true,\n  \"categoryId\": {{categoryId}}\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Reviews",
+      "item": [
+        {
+          "name": "Add Review (authenticated)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('rating returned (not empty {})', () => pm.expect(json.rating).to.eql(5));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 5,\n  \"comment\": \"Great book\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/books/{{bookId}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["books", "{{bookId}}", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Add Review - Invalid Rating (expect 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('400 Bad Request (rating must be 1-5)', () => pm.response.to.have.status(400));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"rating\": 9,\n  \"comment\": \"out of range\"\n}" },
+            "url": {
+              "raw": "{{baseUrl}}/books/{{bookId}}/reviews",
+              "host": ["{{baseUrl}}"],
+              "path": ["books", "{{bookId}}", "reviews"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Borrow",
+      "item": [
+        {
+          "name": "Borrow Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": {{userId}},\n  \"bookId\": {{bookId}}\n}" },
+            "url": { "raw": "{{baseUrl}}/borrow", "host": ["{{baseUrl}}"], "path": ["borrow"] }
+          }
+        },
+        {
+          "name": "Borrow Again (expect 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('409 Conflict - already borrowed', () => pm.response.to.have.status(409));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{userToken}}" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": {{userId}},\n  \"bookId\": {{bookId}}\n}" },
+            "url": { "raw": "{{baseUrl}}/borrow", "host": ["{{baseUrl}}"], "path": ["borrow"] }
+          }
+        },
+        {
+          "name": "Return Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": { "raw": "{{baseUrl}}/return/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["return", "{{bookId}}"] }
+          }
+        },
+        {
+          "name": "Borrow History",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('history is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{userToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/borrow/user/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["borrow", "user", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Cleanup",
+      "item": [
+        {
+          "name": "Delete Book (ADMIN)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));"],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/books/{{bookId}}", "host": ["{{baseUrl}}"], "path": ["books", "{{bookId}}"] }
+          }
+        }
+      ]
+    }
+  ]
+}

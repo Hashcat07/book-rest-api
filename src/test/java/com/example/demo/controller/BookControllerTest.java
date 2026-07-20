@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,10 +26,12 @@ import org.springframework.data.domain.Pageable;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(BookController.class)
+@WithMockUser(roles = "ADMIN")
 public class BookControllerTest {
 
     @MockitoBean
@@ -58,6 +61,7 @@ public class BookControllerTest {
 
         mockMvc.perform(
                         post("/books")
+                                .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -73,6 +77,7 @@ public class BookControllerTest {
 
         mockMvc.perform(
                         post("/books")
+                                .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -88,6 +93,7 @@ public class BookControllerTest {
 
         mockMvc.perform(
                         post("/books")
+                                .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -147,6 +153,7 @@ public class BookControllerTest {
 
         mockMvc.perform(
                         put("/books/1")
+                                .with(csrf())
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(request))
                 )
@@ -155,7 +162,7 @@ public class BookControllerTest {
 
     @Test
     void testDeleteBook() throws Exception {
-        mockMvc.perform(delete("/books/1"))
+        mockMvc.perform(delete("/books/1").with(csrf()))
                 .andExpect(status().isOk());
     }
 

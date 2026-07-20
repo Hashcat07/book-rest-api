@@ -19,7 +19,7 @@ public interface BookRepository extends JpaRepository<Book,Long> {
     Page<Book> findByAvailableTrue(Pageable pageable);
     Page<Book> findByTitleContaining(String title, Pageable pageable);
     Page<Book> findByPriceBetween(double min,double max, Pageable pageable);
-    @Query("SELECT b.title AS title, b.author AS author, AVG(r.rating) AS averageRating " +
+    @Query("SELECT b.id AS id, b.title AS title, b.author AS author, AVG(r.rating) AS averageRating " +
             "FROM Book b LEFT JOIN b.reviews r GROUP BY b.id, b.title, b.author")
     List<BookSummary> findAllSummaries();
 
